@@ -9,11 +9,10 @@ public:
   // Constructor
   Particle(double charge, double mass, arma::vec position, arma::vec velocity);
 
-
-  double q;    // Charge
-  double m;    // Mass
-  arma::vec r; // Position
-  arma::vec v; // Velocity
+  double q;    // Charge of particle
+  double m;    // Mass off particle
+  arma::vec r; // Initial position
+  arma::vec v; // Initial velocity
 
 };
 
