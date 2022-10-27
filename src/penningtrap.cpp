@@ -6,23 +6,16 @@
 // Definition of the constructor
 PenningTrap::PenningTrap(double mag, double pot, double dist, std::vector<Particle> ps)
 {
-    // Use the input variables (c0, c1) to assign values
-    // to the class memeber variables (c0_, c1_)
-    B0 = mag;
-    V0 = pot;
-    d  = dist;
-    p  = ps;
-
-
+    B0 = mag;  // External magnetic field
+    V0 = pot;  // Potential applied to the electrodes
+    d  = dist; // Characteristic dimension
+    p  = ps;   // Particles
 }
 
 // External electric field at point r=(x,y,z)
 arma::vec PenningTrap::external_E_field(arma::vec r)
 {
-    if (arma::norm(r) > d)
-    {
-        return arma::vec("0.0 0.0 0.0");
-    }
+
     
     arma::vec E = arma::vec(3);
 
@@ -38,10 +31,8 @@ arma::vec PenningTrap::external_E_field(arma::vec r)
 // External magnetic field
 arma::vec PenningTrap::external_B_field(arma::vec r)
 {
-    if (arma::norm(r) > d)
-    {
-        return arma::vec("0.0 0.0 0.0");
-    }
+    // No magnetic field outside Penning trap
+
 
     arma::vec B = arma::vec(3);
 
@@ -56,11 +47,11 @@ arma::vec PenningTrap::external_B_field(arma::vec r)
 arma::vec PenningTrap::force_particle(int i, int j)
 {
 
-    Particle p_i = p[i];
-    Particle p_j = p[j];
+    // Coulomb constant
+    double k_e = 1.38935333*1e5;
 
-    arma::vec ri = p_i.r;
-    arma::vec rj = p_j.r;
+    arma::vec ri = p[i].r;
+    arma::vec rj = p[j].r;
     
     double xi, xj, yi, yj, zi, zj;
 
@@ -73,8 +64,7 @@ arma::vec PenningTrap::force_particle(int i, int j)
     zi = ri(2);
     zj = rj(2);
 
-    // Coulomb constant
-    double k_e = 1.38935333e5;
+
 
     // Normal vector
     double nrm = arma::norm(ri - rj);
@@ -82,63 +72,59 @@ arma::vec PenningTrap::force_particle(int i, int j)
 
     // Force vector
     arma::vec F = arma::vec(3);
-    double charge_vars = k_e*p_i.q*p_j.q/p_i.m;
-    F(0) = charge_vars * ((xi - xj)/(nrm*nrm*nrm));
-    F(1) = charge_vars * ((yi - yj)/(nrm*nrm*nrm));
-    F(2) = charge_vars * ((zi - zj)/(nrm*nrm*nrm));
+
+    F = k_e*p[j].q * ((ri - rj)/(nrm*nrm*nrm));
+
 
 
     return F;
 }
 
+
 // The total force on particle_i from the other particles
 arma::vec PenningTrap::total_force_particles(int i, bool interact)
 {
-    arma::vec total = arma::vec("0.0 0.0 0.0");
+
+
+    // Summation vector
+    arma::vec F = arma::vec("0.0 0.0 0.0");
 
     if (interact == false)
     {
-        return total;
+        return F;
     }
 
+    // Sum over particles
     for (int j = 0; j<p.size(); j++)
     {
         if (i != j)
         {
-            total += force_particle(i, j);
-            
+            F += force_particle(i, j);  
         }
     }
-    return total;
+
+    
+    return p[i].q*F;
 }
 
 // The total force on particle_i from the external fields
 arma::vec PenningTrap::total_force_external(int i)
 {
-
-
     return (p[i].q*external_E_field(p[i].r)
            + arma::cross(p[i].v, external_B_field(p[i].r)));
 }
 
-
-
-
-
 // The total force on particle_i from both external fields and other particles
 arma::vec PenningTrap::total_force(int i, bool interact)
 {
-
     
     return total_force_external(i) + total_force_particles(i, interact);
 }
 
-
-
 // Evolve the system one time step (dt) using Runge-Kutta 4th order
 void PenningTrap::evolve_RK4(double dt, bool interact)
 {
-    // Create a temp copy of the the particles contained in PenningTrap::particles
+    // Temporary copy of particles
     std::vector<Particle> p_old = p;
 
     // Collections of arma::vec's to store the RK4 k-values for each particle
@@ -156,35 +142,32 @@ void PenningTrap::evolve_RK4(double dt, bool interact)
 
 
     // K1
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         acc = total_force(i, interact)/p[i].m;
         vel = p[i].v;
 
-        
         k1_r[i] = dt*vel;
         k1_v[i] = dt*acc;
 
     }
 
     // K2
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
-
-        
         p[i].r = p[i].r + k1_r[i]/2;
         p[i].v = p[i].v + k1_v[i]/2;
+
 
         acc = total_force(i, interact)/p[i].m;
         vel = p[i].v;
 
         k2_r[i] = dt*vel;
         k2_v[i] = dt*acc;
-
     }
 
     // K3
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p[i].r + k2_r[i]/2;
         p[i].v = p[i].v + k2_v[i]/2;
@@ -194,11 +177,10 @@ void PenningTrap::evolve_RK4(double dt, bool interact)
 
         k3_r[i] = dt*vel;
         k3_v[i] = dt*acc;
-
     }
 
     // K4
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p[i].r + k3_r[i];
         p[i].v = p[i].v + k3_v[i];
@@ -208,68 +190,70 @@ void PenningTrap::evolve_RK4(double dt, bool interact)
 
         k4_r[i] = dt*vel;
         k4_v[i] = dt*acc;
-
     }
 
     // Final update
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p_old[i].r + (k1_r[i] + 2*k2_r[i] + 2*k3_r[i] + k4_r[i])/6;
         p[i].v = p_old[i].v + (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])/6;
+
+        // No interactions if outside trap
+        if (arma::norm(p[i].r) < d)
+        {
+            p[i].q = 0;
+        }
     }
 }
 
 // Evolve the system one time step (dt) using Forward Euler
 void PenningTrap::evolve_forward_Euler(double dt, bool interact)
 {
+    // Temporary copy of particles
     std::vector<Particle> p_old = p;
 
-    for (int i = 0;i <p.size(); i++)
+    for (int i = 0;i<p.size(); i++)
     {
 
         arma::vec acc = arma::vec(3);
+        arma::vec vel = arma::vec(3);
         
         acc = total_force(i, interact)/p[i].m;
+        vel = p[i].v;
         p[i].v = p_old[i].v + dt * acc;
-        p[i].r = p_old[i].r + dt * p[i].v;
-
+        p[i].r = p_old[i].r + dt * vel;
     }
-
 }
 
 // Count how many of the particles are still inside the trap region
 int PenningTrap::count_particles(void)
 {
     int count = 0;
-    for (int i = 0; i < p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
-        if (arma::norm(p[i].r) < d)
-        {
-            count++;
-        }
+        count += p[i].q;
     }
+
     return count;
 }
 
 void PenningTrap::set_amp_freq(double amp, double freq)
 {
-    f = amp;
-    w_V = freq;
+    f = amp;    // Amplitude 
+    w_V = freq; // Angular frequency of the time-dependent potential term
 }
 
-// TIME DEPENDENT OVERLOADED METHODS
 
+// Overloaded time dependent methods
 
 // External time dependent electric field at point r=(x,y,z)
 arma::vec PenningTrap::external_E_field(arma::vec r, double t)
 {
-    if (arma::norm(r) > d)
-    {
-        return arma::vec("0.0 0.0 0.0");
-    }
 
 
-    double V0_t = V0*(1 + f*cos(w_V*t));
+    // Time dependendt electric potential
+    double V0_t = V0*(1 + f*std::cos(w_V*t));
+
 
     arma::vec E = arma::vec(3);
 
@@ -280,26 +264,43 @@ arma::vec PenningTrap::external_E_field(arma::vec r, double t)
     return E;
 }
 
-// The total force on particle_i from the external fields TIME DEPENDENT
+// The total force on particle_i from the external fields
 arma::vec PenningTrap::total_force_external(int i, double t)
 {
-
 
     return (p[i].q*external_E_field(p[i].r, t)
            + arma::cross(p[i].v, external_B_field(p[i].r)));
 }
 
-// The total force on particle_i from both external fields and other particles TIME DEPENDENT
+// The total force on particle_i from both external fields and other particles
 arma::vec PenningTrap::total_force(int i, bool interact, double t)
 {
-
     return total_force_external(i, t) + total_force_particles(i, interact);
+}
+
+// Evolve the system one time step (dt) using Forward Euler
+void PenningTrap::evolve_forward_Euler(double dt, bool interact, double t)
+{
+    // Temporary copy of particles
+    std::vector<Particle> p_old = p;
+
+    for (int i = 0;i<p.size(); i++)
+    {
+
+        arma::vec acc = arma::vec(3);
+        arma::vec vel = arma::vec(3);
+        
+        acc = total_force(i, interact, t)/p[i].m;
+        vel = p[i].v;
+        p[i].v = p_old[i].v + dt * acc;
+        p[i].r = p_old[i].r + dt * vel;
+    }
 }
 
 // Evolve the system one time step (dt) using Runge-Kutta 4th order
 void PenningTrap::evolve_RK4(double dt, bool interact, double t)
 {
-    // Create a temp copy of the the particles contained in PenningTrap::particles
+    // Temporary copy of particles
     std::vector<Particle> p_old = p;
 
     // Collections of arma::vec's to store the RK4 k-values for each particle
@@ -317,35 +318,32 @@ void PenningTrap::evolve_RK4(double dt, bool interact, double t)
 
 
     // K1
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         acc = total_force(i, interact, t)/p[i].m;
         vel = p[i].v;
 
-        
         k1_r[i] = dt*vel;
         k1_v[i] = dt*acc;
-
     }
 
     // K2
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
-
-        
         p[i].r = p[i].r + k1_r[i]/2;
         p[i].v = p[i].v + k1_v[i]/2;
+
+        
 
         acc = total_force(i, interact, t+.5*dt)/p[i].m;
         vel = p[i].v;
 
         k2_r[i] = dt*vel;
         k2_v[i] = dt*acc;
-
     }
 
     // K3
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p[i].r + k2_r[i]/2;
         p[i].v = p[i].v + k2_v[i]/2;
@@ -355,11 +353,10 @@ void PenningTrap::evolve_RK4(double dt, bool interact, double t)
 
         k3_r[i] = dt*vel;
         k3_v[i] = dt*acc;
-
     }
 
     // K4
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p[i].r + k3_r[i];
         p[i].v = p[i].v + k3_v[i];
@@ -369,13 +366,22 @@ void PenningTrap::evolve_RK4(double dt, bool interact, double t)
 
         k4_r[i] = dt*vel;
         k4_v[i] = dt*acc;
-
     }
 
     // Final update
-    for (int i = 0; i <p.size(); i++)
+    for (int i = 0; i<p.size(); i++)
     {
         p[i].r = p_old[i].r + (k1_r[i] + 2*k2_r[i] + 2*k3_r[i] + k4_r[i])/6;
         p[i].v = p_old[i].v + (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])/6;
+
+        // No interactions if outside trap
+        if (arma::norm(p[i].r) > d)
+        {
+            std::cout<<i<<" "<<arma::norm(p[i].r)<<std::endl;
+            p[i].q = 0;
+        }
+
     }
+
+    
 }
