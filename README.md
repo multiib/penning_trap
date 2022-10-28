@@ -1,7 +1,6 @@
 
-<img src="./res/figs/plots/xy-12-F">
 
-# penning_trap
+# Particle simulation in the Penning Trap
 A Penning trap is a device for the storage of charged particles using a homogeneous axial magnetic field and an inhomogeneous quadrupole electric field. This project aims to simulate particles in such a device using iterative numerical methods.
 
 ## How to run this code?
