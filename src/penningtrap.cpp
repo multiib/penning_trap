@@ -31,9 +31,6 @@ arma::vec PenningTrap::external_E_field(arma::vec r)
 // External magnetic field
 arma::vec PenningTrap::external_B_field(arma::vec r)
 {
-    // No magnetic field outside Penning trap
-
-
     arma::vec B = arma::vec(3);
 
     B(0) = 0;
@@ -64,8 +61,6 @@ arma::vec PenningTrap::force_particle(int i, int j)
     zi = ri(2);
     zj = rj(2);
 
-
-
     // Normal vector
     double nrm = arma::norm(ri - rj);
 
@@ -74,8 +69,6 @@ arma::vec PenningTrap::force_particle(int i, int j)
     arma::vec F = arma::vec(3);
 
     F = k_e*p[j].q * ((ri - rj)/(nrm*nrm*nrm));
-
-
 
     return F;
 }
@@ -149,7 +142,6 @@ void PenningTrap::evolve_RK4(double dt, bool interact)
 
         k1_r[i] = dt*vel;
         k1_v[i] = dt*acc;
-
     }
 
     // K2
@@ -199,7 +191,7 @@ void PenningTrap::evolve_RK4(double dt, bool interact)
         p[i].v = p_old[i].v + (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])/6;
 
         // No interactions if outside trap
-        if (arma::norm(p[i].r) < d)
+        if (arma::norm(p[i].r) > d)
         {
             p[i].q = 0;
         }
@@ -222,6 +214,12 @@ void PenningTrap::evolve_forward_Euler(double dt, bool interact)
         vel = p[i].v;
         p[i].v = p_old[i].v + dt * acc;
         p[i].r = p_old[i].r + dt * vel;
+
+        // No force if outside trap
+        if (arma::norm(p[i].r) > d)
+        {
+            p[i].q = 0;
+        }
     }
 }
 
@@ -249,11 +247,8 @@ void PenningTrap::set_amp_freq(double amp, double freq)
 // External time dependent electric field at point r=(x,y,z)
 arma::vec PenningTrap::external_E_field(arma::vec r, double t)
 {
-
-
     // Time dependendt electric potential
     double V0_t = V0*(1 + f*std::cos(w_V*t));
-
 
     arma::vec E = arma::vec(3);
 
@@ -294,6 +289,12 @@ void PenningTrap::evolve_forward_Euler(double dt, bool interact, double t)
         vel = p[i].v;
         p[i].v = p_old[i].v + dt * acc;
         p[i].r = p_old[i].r + dt * vel;
+
+        // No force if outside trap
+        if (arma::norm(p[i].r) > d)
+        {
+            p[i].q = 0;
+        }
     }
 }
 
@@ -374,14 +375,10 @@ void PenningTrap::evolve_RK4(double dt, bool interact, double t)
         p[i].r = p_old[i].r + (k1_r[i] + 2*k2_r[i] + 2*k3_r[i] + k4_r[i])/6;
         p[i].v = p_old[i].v + (k1_v[i] + 2*k2_v[i] + 2*k3_v[i] + k4_v[i])/6;
 
-        // No interactions if outside trap
+        // No force if outside trap
         if (arma::norm(p[i].r) > d)
         {
-            std::cout<<i<<" "<<arma::norm(p[i].r)<<std::endl;
             p[i].q = 0;
         }
-
     }
-
-    
 }
